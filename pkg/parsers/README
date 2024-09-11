@@ -1,0 +1,7 @@
+The grammar files come from `github.com/openwdl/wdl` under the BSD 3-Clause
+"New" or "Revised" License.
+
+    https://github.com/openwdl/wdl/
+    https://github.com/openwdl/wdl/blob/main/LICENSE
+
+The Go parsers are generated using ANTLR4 version 4.11.1.
