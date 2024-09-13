@@ -37,8 +37,16 @@ Argo Workflows Gene is designed to help scientific computing workflows run seaml
 # Start
 
 ```
-git clone git@github.com:shuangkun/argo-workflows-gene.git
-sh build.sh
+# git clone git@github.com:shuangkun/argo-workflows-gene.git
+# sh build.sh
+Name:                wf
+Namespace:           argo
+ServiceAccount:      unset (will run with the default ServiceAccount)
+Status:              Pending
+Created:             Fri Sep 13 20:12:33 +0800 (now)
+Progress:            
+Parameters:          
+  number:            
 ```
 
 # Mode
