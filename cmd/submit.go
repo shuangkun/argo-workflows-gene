@@ -35,7 +35,7 @@ func NewSubmitCommand() *cobra.Command {
 
 		},
 	}
-	command.Flags().StringVar(&wdlFile, "wdl", "", "wdl file")
+	command.Flags().StringVar(&wdlFile, "file", "", "wdl file")
 	command.Flags().StringVar(&parameterFile, "parameter", "", "parameter file")
 	return command
 }
@@ -44,9 +44,10 @@ func submitWorkflowsFromFile(ctx context.Context, serviceClient workflowpkg.Work
 
 	var workflows []wfv1.Workflow
 	wf := wdl.GenerateWorkflow(wdlFile, parameterFile)
-	fmt.Printf("Generated workflows from wdl-Workflows: %s\n", wf)
+	printWorkflow(&wf, common.GetFlags{Output: "json"})
+	//fmt.Printf("Generated workflows from wdl-Workflows: %s\n", wf)
 	workflows = append(workflows, wf)
-	submitWorkflows(ctx, serviceClient, namespace, workflows, nil, nil)
+	submitWorkflows(ctx, serviceClient, namespace, workflows, &wfv1.SubmitOpts{}, &common.CliSubmitOpts{})
 }
 
 func validateOptions(workflows []wfv1.Workflow, submitOpts *wfv1.SubmitOpts, cliOpts *common.CliSubmitOpts) {

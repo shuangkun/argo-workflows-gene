@@ -29,10 +29,9 @@ type Document struct {
 
 	Version  string    `json:"version"`
 	Workflow *Workflow `json:"workflow,omitempty"` // optional
-
-	Imports []Import `json:"imports,omitempty"` // optional
-	Structs []Struct `json:"structs,omitempty"` // optional
-	Tasks   []Task   `json:"tasks,omitempty"`   // optional
+	Imports  []Import  `json:"imports,omitempty"`  // optional
+	//Structs []Struct `json:"structs,omitempty"` // optional
+	Tasks []Task `json:"tasks,omitempty"` // optional
 }
 
 func (this Document) String() string {
@@ -40,17 +39,33 @@ func (this Document) String() string {
 	if err != nil {
 		return "Document<failed to serialize>"
 	}
-
 	return fmt.Sprintf("Document<%s>", out)
 }
 
 type Workflow struct {
-	Name          Identifier        `json:"name"`
-	Inputs        []Declaration     `json:"inputs,omitempty"`
-	InnerWorkflow InnerWorkflow     `json:"calls,omitempty"`
-	Output        []Declaration     `json:"outputs,omitempty"`
-	Meta          map[string]string `json:"meta,omitempty"`
-	ParameterMeta map[string]string `json:"parameter_meta,omitempty"`
+	Name           Identifier        `json:"name"`
+	Inputs         []Declaration     `json:"inputs,omitempty"`
+	Declarations   []Declaration     `json:"declarations,omitempty"`
+	Calls          []Calls           `json:"calls,omitempty"`
+	InnerWorkflows []InnerWorkflow   `json:"innerWorkflows,omitempty"`
+	Scatter        []Declaration     `json:"scatter,omitempty"`
+	Conditional    []Declaration     `json:"conditional,omitempty"`
+	Output         []Declaration     `json:"outputs,omitempty"`
+	Meta           map[string]string `json:"meta,omitempty"`
+	ParameterMeta  map[string]string `json:"parameter_meta,omitempty"`
+}
+
+type InnerWorkflow2 struct {
+	Name           Identifier        `json:"name"`
+	Inputs         []Declaration     `json:"inputs,omitempty"`
+	Declarations   []Declaration     `json:"declarations,omitempty"`
+	Calls          []Calls           `json:"calls,omitempty"`
+	InnerWorkflows []InnerWorkflow   `json:"innerWorkflows,omitempty"`
+	Scatter        []Declaration     `json:"scatter,omitempty"`
+	Conditional    []Declaration     `json:"conditional,omitempty"`
+	Output         []Declaration     `json:"outputs,omitempty"`
+	Meta           map[string]string `json:"meta,omitempty"`
+	ParameterMeta  map[string]string `json:"parameter_meta,omitempty"`
 }
 
 type InnerWorkflow struct {
@@ -58,6 +73,21 @@ type InnerWorkflow struct {
 	Calls       []Identifier  `json:"calls,omitempty"`
 	Scatter     []Declaration `json:"scatter,omitempty"`
 	Conditional []Declaration `json:"conditional,omitempty"`
+}
+
+type Calls struct {
+	Name    Identifier                `json:"name"`
+	As      Identifier                `json:"as,omitempty"`      // optional
+	Aliases map[Identifier]Identifier `json:"aliases,omitempty"` // optional
+	Inputs  []Declaration
+}
+
+type Scatter struct {
+	Name      Identifier                `json:"name"`
+	As        Identifier                `json:"as,omitempty"`      // optional
+	Aliases   map[Identifier]Identifier `json:"aliases,omitempty"` // optional
+	Calls     []Calls                   `json:"calls,omitempty"`
+	Intergers []Identifier              `json:"intergers,omitempty"`
 }
 
 type Import struct {
@@ -68,6 +98,7 @@ type Import struct {
 }
 
 type Task struct {
+	Name    Identifier                 `json:"name"`
 	Input   []Declaration              `json:"inputs,omitempty"`
 	Command string                     `json:"command"`
 	Runtime map[Identifier]IExpression `json:"runtime"`
@@ -95,7 +126,7 @@ type Any interface{}
 
 type IExpression interface {
 	GetType() string
-	//GetValue() string
+	GetValue() interface{}
 }
 
 type UnknownExpr struct {
@@ -113,7 +144,7 @@ func (this UnknownExpr) GetType() string {
 	return this.Type
 }
 
-func (this UnknownExpr) GetValue() string {
+func (this UnknownExpr) GetValue() interface{} {
 	return this.Value
 }
 
@@ -122,6 +153,11 @@ type LorExpr struct {
 	Type  string      `json:"type"`
 	Left  IExpression `json:"left"`
 	Right IExpression `json:"right"`
+}
+
+func (this LorExpr) GetValue() interface{} {
+	//TODO implement me
+	panic("implement me")
 }
 
 func NewLorExpr(left IExpression, right IExpression) LorExpr {
@@ -137,6 +173,11 @@ type LandExpr struct {
 	Type  string      `json:"type"`
 	Left  IExpression `json:"left"`
 	Right IExpression `json:"right"`
+}
+
+func (this LandExpr) GetValue() interface{} {
+	//TODO implement me
+	panic("implement me")
 }
 
 func NewLandExpr(left IExpression, right IExpression) LandExpr {
@@ -155,6 +196,11 @@ type ComparisonExpr struct {
 	Right     IExpression `json:"right"`
 }
 
+func (this ComparisonExpr) GetValue() interface{} {
+	//TODO implement me
+	panic("implement me")
+}
+
 func NewComparisonExpr(left IExpression, op string, right IExpression) ComparisonExpr {
 	return ComparisonExpr{Type: "ComparisonExpr", Left: left, Operation: op, Right: right}
 }
@@ -169,6 +215,11 @@ type BinaryOpExpr struct {
 	Left      IExpression `json:"left"`
 	Operation string      `json:"op"`
 	Right     IExpression `json:"right"`
+}
+
+func (this BinaryOpExpr) GetValue() interface{} {
+	//TODO implement me
+	panic("implement me")
 }
 
 func NewBinaryOpExpr(left IExpression, op string, right IExpression) BinaryOpExpr {

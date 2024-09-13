@@ -17,5 +17,6 @@ func ArgoGeneCommand() *cobra.Command {
 		},
 	}
 
+	command.AddCommand(WdlCommand())
 	return command
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
 	antlrv1_0 "github.com/shuangkun/argo-workflows-gene/pkg/parsers/v1_0"
+	log "github.com/sirupsen/logrus"
 	urlparse "net/url"
 	"path"
 	"reflect"
@@ -18,9 +19,11 @@ type WdlVisitor struct {
 }
 
 func NewWdlVisitor(url string, version string) *WdlVisitor {
+	reporter := &FmtReporter{}
 	return &WdlVisitor{
-		Url:     url,
-		Version: version,
+		Url:      url,
+		Version:  version,
+		Reporter: reporter,
 	}
 }
 
@@ -73,6 +76,8 @@ func (v *WdlVisitor) VisitUnbound_decls(ctx antlrv1_0.IUnbound_declsContext) Dec
 
 	for _, child := range ctx.GetChildren() {
 		switch tt := child.(type) {
+		case antlr.TerminalNode:
+			identifier = Identifier(tt.GetText())
 		case antlrv1_0.IWdl_typeContext:
 			type_ = v.VisitWdl_type(tt)
 		}
@@ -92,6 +97,10 @@ func (v *WdlVisitor) VisitBound_decls(ctx antlrv1_0.IBound_declsContext) Declara
 
 	for _, child := range ctx.GetChildren() {
 		switch tt := child.(type) {
+		case antlr.TerminalNode:
+			if tt.GetText() != "=" {
+				identifier = Identifier(tt.GetText())
+			}
 		case antlrv1_0.IWdl_typeContext:
 			type_ = v.VisitWdl_type(tt)
 		case antlrv1_0.IExprContext:
@@ -129,11 +138,16 @@ func (v *WdlVisitor) VisitExpression_placeholder_option(ctx antlrv1_0.IExpressio
 
 func (v *WdlVisitor) VisitString_part(ctx antlrv1_0.IString_partContext) string {
 	var parts []string
-	/*
-		for _, part := range ctx.AllStringPart() {
-			parts = append(parts, part.GetText())
+
+	//var p []antlr.TerminalNode
+	//log.Infof("The type is %v\n", reflect.TypeOf(coreCtx).Elem().Name())
+	for _, part := range ctx.GetChildren() {
+		switch tt := part.(type) {
+		case antlr.TerminalNode:
+			parts = append(parts, tt.GetText())
 		}
-	*/
+		log.Infof("The type is %v\n", reflect.TypeOf(part).Elem().Name())
+	}
 
 	return strings.Join(parts, "")
 }
@@ -151,8 +165,10 @@ func (v *WdlVisitor) VisitString(ctx antlrv1_0.IStringContext) string { // inter
 	for _, child := range ctx.GetChildren() {
 		switch tt := child.(type) {
 		case antlrv1_0.IString_partContext:
+			log.Infof("IString_partContext: %v", tt.GetText())
 			return v.VisitString_part(tt)
 		case antlrv1_0.IExpression_placeholder_optionContext:
+			log.Infof("IExpression_placeholder_optionContext: %v", tt.GetText())
 			fmt.Println(reflect.TypeOf(tt))
 		default:
 			v.Reporter.NotImplemented(reflect.TypeOf(tt))
@@ -164,7 +180,7 @@ func (v *WdlVisitor) VisitString(ctx antlrv1_0.IStringContext) string { // inter
 }
 
 func (v *WdlVisitor) VisitPrimitive_literal(ctx antlrv1_0.IPrimitive_literalContext) interface{} {
-	fmt.Println("Primitive start")
+	log.Infof("Primitive start")
 	name := ""
 	// TODO: figure out the appropriate return type.
 	for _, child := range ctx.GetChildren() {
@@ -172,6 +188,7 @@ func (v *WdlVisitor) VisitPrimitive_literal(ctx antlrv1_0.IPrimitive_literalCont
 		case antlrv1_0.INumberContext:
 			return v.VisitNumber(tt)
 		case antlrv1_0.IStringContext:
+			log.Infof("String is: %v", tt.GetText())
 			return v.VisitString(tt)
 		case antlr.TerminalNode:
 			fmt.Println(tt.GetText())
@@ -186,7 +203,7 @@ func (v *WdlVisitor) VisitPrimitive_literal(ctx antlrv1_0.IPrimitive_literalCont
 
 func (v *WdlVisitor) VisitExpr(ctx antlrv1_0.IExprContext) IExpression {
 	infixCtx := ctx.GetChild(0).(antlrv1_0.IExpr_infixContext)
-
+	log.Infof("infixCtx:", infixCtx.GetText())
 	// 	expr
 	// 	: expr_infix
 	// 	;
@@ -196,6 +213,7 @@ func (v *WdlVisitor) VisitExpr(ctx antlrv1_0.IExprContext) IExpression {
 	// 	;
 
 	infix0Ctx := infixCtx.GetChild(0).(antlrv1_0.IExpr_infix0Context)
+	log.Infof("infix0Ctx:", infix0Ctx.GetText())
 	return v.VisitInfix0(infix0Ctx)
 }
 
@@ -207,6 +225,7 @@ func (v *WdlVisitor) VisitInfix0(ctx antlrv1_0.IExpr_infix0Context) IExpression 
 	// ;
 
 	if count := ctx.GetChildCount(); count == 1 {
+		log.Infof("infix0 contains 1 number of children")
 		// No branches
 		infix1Ctx := ctx.GetChild(0).(antlrv1_0.IExpr_infix1Context)
 		return v.VisitInfix1(infix1Ctx)
@@ -232,6 +251,7 @@ func (v *WdlVisitor) VisitInfix1(ctx antlrv1_0.IExpr_infix1Context) IExpression 
 	// ;
 
 	if count := ctx.GetChildCount(); count == 1 {
+		log.Infof("infix1 contains 1 number of children")
 		// No branches
 		infix2Ctx := ctx.GetChild(0).(antlrv1_0.IExpr_infix2Context)
 		return v.VisitInfix2(infix2Ctx)
@@ -264,6 +284,7 @@ func (v *WdlVisitor) VisitInfix2(ctx antlrv1_0.IExpr_infix2Context) IExpression 
 	// ;
 
 	if count := ctx.GetChildCount(); count == 1 {
+		log.Infof("infix2 contains 1 number of children")
 		// No branches
 		infix3Ctx := ctx.GetChild(0).(antlrv1_0.IExpr_infix3Context)
 		return v.VisitInfix3(infix3Ctx)
@@ -296,6 +317,8 @@ func (v *WdlVisitor) VisitInfix3(ctx antlrv1_0.IExpr_infix3Context) IExpression 
 	// ;
 
 	if count := ctx.GetChildCount(); count == 1 {
+		log.Infof("infix3 contains 1 number of children")
+
 		// No branches
 		infix4Ctx := ctx.GetChild(0).(antlrv1_0.IExpr_infix4Context)
 		return v.VisitInfix4(infix4Ctx)
@@ -329,6 +352,7 @@ func (v *WdlVisitor) VisitInfix4(ctx antlrv1_0.IExpr_infix4Context) IExpression 
 	// ;
 
 	if count := ctx.GetChildCount(); count == 1 {
+		log.Infof("infix1 contains 1 number of children")
 		// No branches
 		infix5Ctx := ctx.GetChild(0).(antlrv1_0.IExpr_infix5Context)
 		return v.VisitInfix5(infix5Ctx)
@@ -376,12 +400,13 @@ func (v *WdlVisitor) VisitInfix5(ctx antlrv1_0.IExpr_infix5Context) IExpression 
 	// We probably **have** to use reflection here to get the type of context we're dealing with (the label). I don't
 	// think ANTLR4 stores this information in the node, it just assumes that we're working with the original interface
 	// so we could type check that way, but we're not.
-	fmt.Printf("%v\n", reflect.TypeOf(coreCtx).Elem().Name())
-
+	log.Infof("The type is %v\n", reflect.TypeOf(coreCtx).Elem().Name())
+	log.Infof("The text is %v\n", reflect.TypeOf(coreCtx).Elem().String())
 	switch reflect.TypeOf(coreCtx).Elem().Name() {
 	case "PrimitivesContext":
 		rv := NewTerminalExpr()
 		rv.Value = v.VisitPrimitive_literal(coreCtx.GetChild(0).(antlrv1_0.IPrimitive_literalContext))
+		log.Infof("rv.Value = %v\n", rv.Value)
 		return rv
 	}
 
@@ -449,11 +474,11 @@ func (v *WdlVisitor) VisitExpr_infix5(ctx antlrv1_0.IExpr_infix5Context) interfa
 func (v *WdlVisitor) VisitVersion(ctx antlrv1_0.IVersionContext) string {
 	version := ctx.GetText()
 
-	if version != v.Version {
+	if version != "version"+v.Version {
 		v.Reporter.Warn(ctx, fmt.Sprintf("Version mismatch! Using parser for version %s but workflow has version %s", v.Version, version))
 	}
 
-	return version
+	return v.Version
 }
 
 // VisitImport_alias returns the import alias as a mapping from the original
@@ -550,10 +575,12 @@ func (v *WdlVisitor) VisitTask_runtime_kv(ctx antlrv1_0.ITask_runtime_kvContext)
 	runtime := make(map[Identifier]IExpression)
 	key := Identifier(ctx.GetChild(0).(antlr.TerminalNode).GetText())
 	fmt.Println("kv start")
+	//var value IExpression
 	var value IExpression
 	for _, child := range ctx.GetChildren() {
 		switch tt := child.(type) {
 		case antlrv1_0.IExprContext:
+			log.Infof("IExprContext: %v", tt.GetText())
 			value = v.VisitExpr(tt)
 		default:
 			fmt.Println(reflect.TypeOf(tt))
@@ -569,6 +596,7 @@ func (v *WdlVisitor) VisitTask_runtime(ctx antlrv1_0.ITask_runtimeContext) map[I
 	for _, child := range ctx.GetChildren() {
 		switch tt := child.(type) {
 		case antlrv1_0.ITask_runtime_kvContext:
+			log.Infof("ITask_runtime_kvContext: %v", tt.GetText())
 			runtime = v.VisitTask_runtime_kv(tt)
 		}
 	}
@@ -598,19 +626,20 @@ func (v *WdlVisitor) VisitTask_input(ctx antlrv1_0.ITask_inputContext) []Declara
 
 func (v *WdlVisitor) VisitTask_output(ctx antlrv1_0.ITask_outputContext) []Declaration {
 	len := 0
-	for _, ctx := range ctx.GetChildren() {
-		if _, ok := ctx.(antlrv1_0.IAny_declsContext); ok {
+	for _, child := range ctx.GetChildren() {
+		if _, ok := child.(antlrv1_0.IBound_declsContext); ok {
 			len++
 		}
 	}
-
+	log.Infof("output len is: %v", len)
 	outputs := make([]Declaration, len)
 	idx := 0
 
 	for _, child := range ctx.GetChildren() {
 		switch tt := child.(type) {
-		case antlrv1_0.IAny_declsContext:
-			outputs[idx] = v.VisitAny_decls(tt)
+		case antlrv1_0.IBound_declsContext:
+			log.Infof("IBound_declsContext: %v", tt.GetText())
+			outputs[idx] = v.VisitBound_decls(tt)
 			idx++
 		}
 	}
@@ -654,9 +683,9 @@ func (v *WdlVisitor) VisitTask_command_expr_part(ctx antlrv1_0.ITask_command_exp
 			fmt.Printf("name: %v\n", name)
 			if name.GetType() == "TerminalExpr" {
 				fmt.Println("TerminalExpr")
-				terminal := name.(TerminalExpr)
-				fmt.Printf("terminal.Value: %v\n", terminal.Value)
-				exprString = "$" + "(" + terminal.Value.(string) + ")"
+				//terminal := name.(TerminalExpr)
+				//fmt.Printf("terminal.Value: %v\n", terminal.Value)
+				//exprString = "$" + "(" + terminal.Value.(string) + ")"
 			}
 		}
 	}
@@ -713,16 +742,17 @@ func (v *WdlVisitor) VisitTask_element(ctx antlrv1_0.ITask_elementContext) inter
 }
 
 func (v *WdlVisitor) VisitTask(ctx antlrv1_0.ITaskContext) Task {
-	fmt.Println("task")
 	var inputs []Declaration
 	var outputs []Declaration
 	var runtime map[Identifier]IExpression
 	var command string
+	var name Identifier
 
 	for _, child := range ctx.GetChildren() {
 
 		switch tt := child.(type) {
-
+		case antlr.TerminalNode:
+			name = Identifier(ctx.GetChildren()[1].(antlr.TerminalNode).GetText())
 		case antlrv1_0.ITask_elementContext:
 			// Let's flatten this.
 			fmt.Println("task chdaild")
@@ -732,10 +762,10 @@ func (v *WdlVisitor) VisitTask(ctx antlrv1_0.ITaskContext) Task {
 				fmt.Println("input")
 				inputs = v.VisitTask_input(tt)
 			case antlrv1_0.ITask_outputContext:
-				fmt.Println("output")
+				log.Infof("output: %v", tt.GetText())
 				outputs = v.VisitTask_output(tt)
 			case antlrv1_0.ITask_runtimeContext:
-				fmt.Println("runtime")
+				log.Infof("runtime chdaild", tt.GetText())
 				runtime = v.VisitTask_runtime(tt)
 			case antlrv1_0.ITask_commandContext:
 				fmt.Println("command1nndknlk")
@@ -747,6 +777,7 @@ func (v *WdlVisitor) VisitTask(ctx antlrv1_0.ITaskContext) Task {
 	}
 
 	return Task{
+		Name:    name,
 		Input:   inputs,
 		Command: command,
 		Runtime: runtime,
@@ -755,7 +786,6 @@ func (v *WdlVisitor) VisitTask(ctx antlrv1_0.ITaskContext) Task {
 }
 
 func (v *WdlVisitor) VisitInner_workflow_element(ctx antlrv1_0.IInner_workflow_elementContext) InnerWorkflow {
-	//name := Identifier(ctx.Identifier().GetText())
 
 	var calls []Identifier
 	for _, child := range ctx.GetChildren() {
@@ -888,34 +918,45 @@ func (v *WdlVisitor) VisitWorkflow_output(ctx antlrv1_0.IWorkflow_outputContext)
 //}
 
 func (v *WdlVisitor) VisitWorkflow(ctx antlrv1_0.IWorkflowContext) Workflow {
-	name := Identifier(ctx.GetText())
+
+	log.Infof("GetText(): %v", ctx.GetText())
 
 	var inputs []Declaration
 	var outputs []Declaration
-	var inners InnerWorkflow
+	//var calls []Calls
+	var inners []InnerWorkflow
+	var name Identifier
 	for _, child := range ctx.GetChildren() {
 		switch tt := child.(type) {
+		case antlr.TerminalNode:
+			name = Identifier(ctx.GetChildren()[1].(antlr.TerminalNode).GetText())
 		case antlrv1_0.IWorkflow_elementContext:
 			// Let's flatten this.
 			// TODO: we need to support expression and declaration first.
 			switch tt := tt.GetChild(0).(type) {
 			case antlrv1_0.IWorkflow_inputContext:
+				log.Infof("IWorkflow_inputContext: %v", tt.GetText())
 				inputs = v.VisitWorkflow_input(tt)
 			case antlrv1_0.IInner_workflow_elementContext:
-				inners = v.VisitInner_workflow_element(tt)
+				log.Infof("IInner_workflow_elementContext: %v", tt.GetText())
+				inners = append(inners, v.VisitInner_workflow_element(tt))
 			case antlrv1_0.IWorkflow_outputContext:
+				log.Infof("IWorkflow_outputContext: %v", tt.GetText())
 				outputs = v.VisitWorkflow_output(tt)
 			default:
 				v.Reporter.NotImplemented(reflect.TypeOf(tt))
 			}
+		default:
+			log.Infof("tt: %v", tt)
+			v.Reporter.NotImplemented(reflect.TypeOf(tt))
 		}
 	}
 
 	return Workflow{
-		Name:          name,
-		Inputs:        inputs,
-		Output:        outputs,
-		InnerWorkflow: inners,
+		Name:           name,
+		Inputs:         inputs,
+		Output:         outputs,
+		InnerWorkflows: inners,
 	}
 }
 
@@ -930,21 +971,32 @@ func (v *WdlVisitor) VisitDocument(ctx antlrv1_0.IDocumentContext) Document {
 	var workflow Workflow // optional
 	var imports []Import
 	var tasks []Task
+	log.Infof("VisitDocument: %v", ctx.GetText())
 	for _, ctx := range ctx.GetChildren() {
 		switch tt := ctx.(type) {
 		// There should be exactly one version statement and one or zero workflows.
 		case antlrv1_0.IVersionContext:
+			log.Infof("IVersionContext: %v", tt.GetText())
 			version = v.VisitVersion(tt)
+		case antlrv1_0.IInner_workflow_elementContext:
+			log.Infof("IInner_workflow_elementContext: %v", tt.GetText())
+		// There could be a number of document elements.
 		case antlrv1_0.IWorkflowContext:
+			log.Infof("IWorkflowContext: %v", tt.GetText())
 			workflow = v.VisitWorkflow(tt)
 		// There could be a number of document elements.
 		case antlrv1_0.IDocument_elementContext:
+			log.Infof("IDocument_elementContext: %v", tt.GetText())
 			// Let's flatten this.
 			switch tt := tt.GetChild(0).(type) {
 			case antlrv1_0.IImport_docContext:
 				imports = append(imports, v.VisitImport_doc(tt))
 			case antlrv1_0.ITaskContext:
+				log.Infof("ITaskContext: %v", tt.GetText())
 				tasks = append(tasks, v.VisitTask(tt))
+			case antlrv1_0.IWorkflowContext:
+				log.Infof("IWorkflowContext: %v", tt.GetText())
+				workflow = v.VisitWorkflow(tt)
 			// TODO: structs
 			default:
 				v.Reporter.NotImplemented(reflect.TypeOf(tt))

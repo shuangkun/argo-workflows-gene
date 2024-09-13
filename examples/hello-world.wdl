@@ -7,10 +7,21 @@ version 1.0
 # multiline
 # comment
 
-task test {
+workflow wf {
+  input {
+    Int number  #This comment comes after a variable declaration
+  }
+
+  #You can have comments anywhere in the workflow
+  call hello
+  output { #You can also put comments after braces
+    String result = hello.result
+  }
+}
+
+task hello {
   #This comment will not be included within the command
   command <<<
-    #This comment WILL be included within the command after it has been parsed
     echo 'Hello World'
   >>>
 
@@ -19,19 +30,6 @@ task test {
   }
 
   runtime {
-    container: "my_image:latest"
-  }
-}
-
-workflow wf {
-  input {
-    Int number  #This comment comes after a variable declaration
-  }
-
-  #You can have comments anywhere in the workflow
-  call test
-
-  output { #You can also put comments after braces
-    String result = test.result
+    container: "alpine:latest"
   }
 }
