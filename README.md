@@ -34,7 +34,14 @@ Some batch computing scheduling capabilities in Kubernetes, such as Gang and top
 These challenges make it very difficult for the scientific computing industry to migrate to the Kubernetes ecosystem and use Kubernetes. 
 Argo Workflows Gene is designed to help scientific computing workflows run seamlessly on Kubernetes based on Argo Workflow, the powerful engine of Kubernetes.
 
-# How to use
+# Start
+
+```
+git clone git@github.com:shuangkun/argo-workflows-gene.git
+sh build.sh
+```
+
+# Mode
 
 client mode
 
